@@ -1,0 +1,67 @@
+#include <WiFi.h>
+#include <esp_now.h>
+
+uint8_t receiverMAC[] = {0xD0, 0xEF, 0x76, 0xEE, 0xEA, 0xA8};
+
+struct DATA {
+  char msg[10];
+} data;
+
+#define BTN_M1  14
+#define BTN_M2  12
+#define BTN_M3  27
+
+bool prev1 = HIGH, prev2 = HIGH, prev3 = HIGH;
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(BTN_M1, INPUT_PULLUP);
+  pinMode(BTN_M2, INPUT_PULLUP);
+  pinMode(BTN_M3, INPUT_PULLUP);
+
+  WiFi.mode(WIFI_STA);
+  esp_now_init();
+
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, receiverMAC, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  esp_now_add_peer(&peerInfo);
+
+  Serial.println("Sender Ready!");
+}
+
+void sendMsg(const char *txt) {
+  strcpy(data.msg, txt);
+  esp_now_send(receiverMAC, (uint8_t*)&data, sizeof(data));
+  Serial.println(txt);
+}
+
+void loop() {
+
+  bool r1 = digitalRead(BTN_M1);
+  bool r2 = digitalRead(BTN_M2);
+  bool r3 = digitalRead(BTN_M3);
+
+  if (r1 != prev1) {
+    if (r1 == LOW) sendMsg("M1_ON");
+    else sendMsg("M1_OFF");
+    prev1 = r1;
+    delay(50);
+  }
+
+  if (r2 != prev2) {
+    if (r2 == LOW) sendMsg("M2_ON");
+    else sendMsg("M2_OFF");
+    prev2 = r2;
+    delay(50);
+  }
+
+  if (r3 != prev3) {
+    if (r3 == LOW) sendMsg("M3_ON");
+    else sendMsg("M3_OFF");
+    prev3 = r3;
+    delay(50);
+  }
+}

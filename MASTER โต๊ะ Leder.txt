@@ -1,0 +1,99 @@
+#include <WiFi.h>
+#include <esp_now.h>
+
+// ข้อมูลที่รับ
+struct DATA {
+  char msg[10];
+} data;
+
+// Output pins
+#define LED_M1  13
+#define LED_M2  12
+#define LED_M3  14
+#define BUZZER  27
+
+bool alarmActive = false;     // มีการกดปุ่มจากพนักงานหรือไม่
+unsigned long lastToggle = 0; // เวลาเปลี่ยนสถานะเสียง
+bool buzzerState = false;     // เปิด/ปิดเสียงช่วงๆ
+
+// Callback แบบใหม่
+void onReceive(const esp_now_recv_info *info, const uint8_t *incomingData, int len) {
+  memcpy(&data, incomingData, sizeof(data));
+  String msg = data.msg;
+
+  Serial.println("Received: " + msg);
+
+  // ----------------------------
+  // เครื่อง 1
+  // ----------------------------
+  if (msg == "M1_ON") {
+    digitalWrite(LED_M1, HIGH);
+    alarmActive = true;
+  }
+  if (msg == "M1_OFF") {
+    digitalWrite(LED_M1, LOW);
+    alarmActive = false;
+  }
+
+  // ----------------------------
+  // เครื่อง 2
+  // ----------------------------
+  if (msg == "M2_ON") {
+    digitalWrite(LED_M2, HIGH);
+    alarmActive = true;
+  }
+  if (msg == "M2_OFF") {
+    digitalWrite(LED_M2, LOW);
+    alarmActive = false;
+  }
+
+  // ----------------------------
+  // เครื่อง 3
+  // ----------------------------
+  if (msg == "M3_ON") {
+    digitalWrite(LED_M3, HIGH);
+    alarmActive = true;
+  }
+  if (msg == "M3_OFF") {
+    digitalWrite(LED_M3, LOW);
+    alarmActive = false;
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED_M1, OUTPUT);
+  pinMode(LED_M2, OUTPUT);
+  pinMode(LED_M3, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+
+  WiFi.mode(WIFI_STA);
+  esp_now_init();
+  esp_now_register_recv_cb(onReceive);
+
+  Serial.println("Receiver Ready!");
+}
+
+void loop() {
+
+  if (alarmActive) {
+    unsigned long now = millis();
+
+    // Toggle ทุก 3000ms (3 วินาที)
+    if (now - lastToggle >= 3000) {
+      lastToggle = now;
+      buzzerState = !buzzerState;
+
+      if (buzzerState) {
+        tone(BUZZER, 2000); // เปิดเสียง
+      } else {
+        noTone(BUZZER);     // ปิดเสียง
+      }
+    }
+
+  } else {
+    // ปล่อยปุ่ม → หยุดเสียงทันที
+    noTone(BUZZER);
+  }
+}
